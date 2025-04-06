@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Fake Profile Detection{% endblock %}</title>
+    
+    <!-- Bootstrap CSS (was missing) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         /* Responsive Enhancements */
@@ -220,32 +223,41 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
-        <a class="navbar-brand" href="/">Fake Profile Detection</a>
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Fake Profile Detection</a>
+            
+            <!-- Added navbar-toggler for responsive menu -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-        <div class="ms-auto d-flex align-items-center">
-            <!-- What's New Button -->
-            <a href="{% url 'whats_new' %}" class="btn btn-sm btn-warning whats-new-btn">📢 What's New</a>
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <div class="ms-auto d-flex align-items-center">
+                    <!-- What's New Button -->
+                    <a href="{% url 'whats_new' %}" class="btn btn-sm btn-warning whats-new-btn">📢 What's New</a>
 
-            <!-- Language Selector -->
-            <select id="languageSelect" class="form-select form-select-sm language-selector">
-                <option value="">🌍 Select Language</option>
-                <option value="en">English</option>
-                <option value="hi">हिन्दी</option>
-                <option value="mr">मराठी</option>
-                <option value="ta">தமிழ்</option>
-                <option value="te">తెలుగు</option>
-                <option value="bn">বাংলা</option>
-                <option value="gu">ગુજરાતી</option>
-                <option value="pa">ਪੰਜਾਬੀ</option>
-            </select>
+                    <!-- Language Selector -->
+                    <select id="languageSelect" class="form-select form-select-sm language-selector">
+                        <option value="">🌍 Select Language</option>
+                        <option value="en">English</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="mr">मराठी</option>
+                        <option value="ta">தமிழ்</option>
+                        <option value="te">తెలుగు</option>
+                        <option value="bn">বাংলা</option>
+                        <option value="gu">ગુજરાતી</option>
+                        <option value="pa">ਪੰਜਾਬੀ</option>
+                    </select>
 
-            <!-- Dark Mode Toggle -->
-            <div class="toggle-container ms-3">
-                <span class="text-light">🌞</span>
-                <label class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="darkModeToggle">
-                </label>
-                <span class="text-light">🌙</span>
+                    <!-- Dark Mode Toggle -->
+                    <div class="toggle-container ms-3">
+                        <span class="text-light">🌞</span>
+                        <label class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                        </label>
+                        <span class="text-light">🌙</span>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
@@ -271,8 +283,8 @@
                     <h5>Quick Links</h5>
                     <ul class="list-unstyled small custom-link">
                         <li><a href="{% url 'profile_input' %}">🔍 Check a Profile</a></li>
-                        <li><a href="{% url 'whats_new' %}">📰 What’s New</a></li>
-                        <li><a href="https://www.pcmag.com/picks/the-best-security-suites?test_uuid=06VbILP0gGfqWI6STznyr7F&test_variant=B" target="_blank">🔐 Cyber Resources</a></li>
+                        <li><a href="{% url 'whats_new' %}">📰 What's New</a></li>
+                        <li><a href="https://www.pcmag.com/picks/the-best-security-suites" target="_blank">🔐 Cyber Resources</a></li>
                     </ul>
                 </div>
                 
@@ -280,10 +292,10 @@
                 <div class="col-md-4 mb-4">
                     <h5 class="text-center text-md-end">Contact Us</h5>
                     <ul class="list-unstyled small custom-link text-center text-md-end">
-                        <li><a href=https://www.linkedin.com/in/rohan-gaikwad-929802234?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Rohan Gaikwad</a></li>
-                        <li><a href=https://www.linkedin.com/in/nishant018?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Nishant Harde</a></li>
-                        <li><a href=https://www.linkedin.com/in/yashmogal?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Yash Mogal   </a></li>
-                        <li><a href=https://www.linkedin.com/in/sachin-thote-5365b0240?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Sachin Thote </a></li>
+                        <li><a href="https://www.linkedin.com/in/rohan-gaikwad-929802234/">👤 Rohan Gaikwad</a></li>
+                        <li><a href="https://www.linkedin.com/in/nishant018/">👤 Nishant Harde</a></li>
+                        <li><a href="https://www.linkedin.com/in/yashmogal/">👤 Yash Mogal</a></li>
+                        <li><a href="https://www.linkedin.com/in/sachin-thote-5365b0240/">👤 Sachin Thote</a></li>
                     </ul>
                 </div>
             </div>
