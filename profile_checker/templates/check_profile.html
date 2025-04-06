@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">🔍 Fake Profile Detection</h2>
+    <p class="text-center text-muted">Enter a username to check if the profile is real or fake.</p>
+
+    <!-- Profile Check Form -->
+    <form method="POST" class="text-center">
+        {% csrf_token %}
+        <input type="text" name="username" class="form-control w-50 mx-auto" placeholder="Enter username" required>
+        <button type="submit" class="btn btn-primary mt-3">Check Profile</button>
+    </form>
+
+    <!-- Display Results if Available -->
+    {% if result %}
+    <div class="mt-4 text-center">
+        <h4>Result for <strong>{{ username }}</strong>:</h4>
+        {% if is_fake %}
+            <p class="text-danger fw-bold">❌ Fake Profile (Confidence: {{ confidence }}%)</p>
+        {% else %}
+            <p class="text-success fw-bold">✅ Real Profile (Confidence: {{ confidence }}%)</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

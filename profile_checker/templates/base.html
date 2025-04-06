@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Fake Profile Detection{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    /* Responsive Enhancements */
+@media (max-width: 992px) {
+    .navbar .ms-auto {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .language-selector,
+    .whats-new-btn,
+    .toggle-container {
+        width: 100%;
+    }
+
+    .footer-content {
+        text-align: center;
+    }
+
+    .footer-content .text-md-end {
+        text-align: center !important;
+    }
+
+    .footer-quick-links {
+        text-align: center;
+    }
+
+    .footer-quick-links ul {
+        padding-left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .section-box {
+        padding: 20px;
+    }
+
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+
+    .footer-content {
+        padding: 20px 15px;
+    }
+
+    .footer-content h5 {
+        font-size: 1.1rem;
+    }
+
+    .footer-content ul li {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .language-selector,
+    .whats-new-btn {
+        font-size: 0.9rem;
+        padding: 6px 10px;
+    }
+
+    .toggle-container span {
+        font-size: 0.9rem;
+    }
+
+    .form-check-input {
+        transform: scale(0.8);
+    }
+
+    .section-box {
+        margin-bottom: 20px;
+    }
+}
+
+
+    <style>
+        :root {
+            --bg-light: #f8f9fa;
+            --bg-dark: #1c1c1c;
+            --text-light: #212529;
+            --text-dark: #f8f9fa;
+            --box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            --border-radius: 15px;
+            --padding-standard: 30px;
+            --transition-standard: background 0.3s ease, color 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+            color: var(--text-light);
+            transition: var(--transition-standard);
+            top: 0px !important;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(to right, #1c1c1c, #2a2a2a);
+            color: var(--text-dark);
+        }
+
+        .navbar {
+            transition: background 0.3s ease;
+        }
+
+        .dark-mode .navbar {
+            background-color: #333 !important;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .language-selector {
+            margin-left: 15px;
+        }
+
+        .whats-new-btn {
+            margin-left: 15px;
+            white-space: nowrap;
+        }
+
+        /* Standard section box that will be consistent across all pages */
+        .section-box {
+            background-color: var(--bg-light);
+            border-radius: var(--border-radius);
+            padding: var(--padding-standard);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition-standard);
+            margin-bottom: 30px;
+        }
+
+        body.dark-mode .section-box {
+            background-color: #2c2c2c;
+            color: var(--text-dark);
+        }
+
+        .custom-link a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .custom-link a:hover {
+            text-decoration: underline;
+            color: #007bff;
+        }
+
+        body.dark-mode .custom-link a {
+            color: var(--text-dark);
+        }
+
+        /* Hide Google Translate elements */
+        .goog-te-banner-frame {
+            display: none !important;
+        }
+
+        /* Content container for consistent spacing */
+        .content-container {
+            padding: 20px 0 40px;
+            flex: 1 0 auto; /* Make content area take available space */
+        }
+
+        /* Footer content - Controls the inner styling */
+        .footer-content {
+            background-color: var(--bg-light);
+            border-radius: var(--border-radius);
+            padding: var(--padding-standard);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition-standard);
+            margin-top: auto; /* Push footer to bottom */
+        }
+
+        body.dark-mode .footer-content {
+            background-color: #2c2c2c;
+            color: var(--text-dark);
+        }
+
+        /* Ensure link colors are appropriate for each mode */
+        .footer-content .custom-link a {
+            color: var(--text-light);
+        }
+
+        body.dark-mode .footer-content .custom-link a {
+            color: var(--text-dark);
+        }
+
+        /* Fix for section headings in footer */
+        .footer-content h5 {
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        /* Spacing for footer links */
+        .footer-content ul li {
+            margin-bottom: 8px;
+        }
+
+        /* Center Quick Links */
+        .footer-quick-links {
+            text-align: center;
+        }
+
+        .footer-quick-links h5,
+        .footer-quick-links ul {
+            text-align: center;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+        <a class="navbar-brand" href="/">Fake Profile Detection</a>
+
+        <div class="ms-auto d-flex align-items-center">
+            <!-- What's New Button -->
+            <a href="{% url 'whats_new' %}" class="btn btn-sm btn-warning whats-new-btn">📢 What's New</a>
+
+            <!-- Language Selector -->
+            <select id="languageSelect" class="form-select form-select-sm language-selector">
+                <option value="">🌍 Select Language</option>
+                <option value="en">English</option>
+                <option value="hi">हिन्दी</option>
+                <option value="mr">मराठी</option>
+                <option value="ta">தமிழ்</option>
+                <option value="te">తెలుగు</option>
+                <option value="bn">বাংলা</option>
+                <option value="gu">ગુજરાતી</option>
+                <option value="pa">ਪੰਜਾਬੀ</option>
+            </select>
+
+            <!-- Dark Mode Toggle -->
+            <div class="toggle-container ms-3">
+                <span class="text-light">🌞</span>
+                <label class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="darkModeToggle">
+                </label>
+                <span class="text-light">🌙</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container content-container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Modified Footer Structure - Removed black wrapper -->
+    <div class="container mt-4 mb-4">
+        <div class="footer-content">
+            <div class="row">
+                <!-- About Us -->
+                <div class="col-md-4 mb-4">
+                    <h5>About Us</h5>
+                    <p class="small">
+                        We aim to safeguard your digital presence by detecting fake social profiles using cutting-edge AI and image analysis. Our mission is to create a safer and more secure online experience for everyone.
+                    </p>
+                </div>
+
+                <!-- Quick Links - Always centered -->
+                <div class="col-md-4 mb-4 footer-quick-links">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled small custom-link">
+                        <li><a href="{% url 'profile_input' %}">🔍 Check a Profile</a></li>
+                        <li><a href="{% url 'whats_new' %}">📰 What’s New</a></li>
+                        <li><a href="https://www.pcmag.com/picks/the-best-security-suites?test_uuid=06VbILP0gGfqWI6STznyr7F&test_variant=B" target="_blank">🔐 Cyber Resources</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Contact Us -->
+                <div class="col-md-4 mb-4">
+                    <h5 class="text-center text-md-end">Contact Us</h5>
+                    <ul class="list-unstyled small custom-link text-center text-md-end">
+                        <li><a href=https://www.linkedin.com/in/rohan-gaikwad-929802234?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Rohan Gaikwad</a></li>
+                        <li><a href=https://www.linkedin.com/in/nishant018?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Nishant Harde</a></li>
+                        <li><a href=https://www.linkedin.com/in/yashmogal?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Yash Mogal   </a></li>
+                        <li><a href=https://www.linkedin.com/in/sachin-thote-5365b0240?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app>👤 Sachin Thote </a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr class="border-secondary mt-2" />
+            <div class="text-center small text-muted mt-3">
+                © 2025 Fake Profile Detection System · All rights reserved.
+            </div>
+        </div>
+    </div>
+
+    <div id="google_translate_element" style="display: none;"></div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Google Translate Script -->
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({ pageLanguage: 'en' }, 'google_translate_element');
+        }
+    </script>
+    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <script>
+        // Wait for Google Translate dropdown to load
+        function waitForTranslateDropdown(callback) {
+            const interval = setInterval(() => {
+                const dropdown = document.querySelector(".goog-te-combo");
+                if (dropdown) {
+                    clearInterval(interval);
+                    callback(dropdown);
+                }
+            }, 500);
+        }
+
+        // Change language function
+        function changeLanguage() {
+            const selectedLang = document.getElementById("languageSelect").value;
+            waitForTranslateDropdown((dropdown) => {
+                dropdown.value = selectedLang;
+                dropdown.dispatchEvent(new Event("change"));
+                localStorage.setItem("selectedLanguage", selectedLang);
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener("DOMContentLoaded", function () {
+            // Set language from localStorage
+            const savedLang = localStorage.getItem("selectedLanguage") || "en";
+            document.getElementById("languageSelect").value = savedLang;
+
+            waitForTranslateDropdown((dropdown) => {
+                dropdown.value = savedLang;
+                dropdown.dispatchEvent(new Event("change"));
+            });
+
+            document.getElementById("languageSelect").addEventListener("change", changeLanguage);
+            
+            // Set dark mode from localStorage if present
+            const darkModeSetting = localStorage.getItem("darkMode");
+            if (darkModeSetting === "true") {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').checked = true;
+            }
+            
+            // Dark mode toggle with localStorage
+            document.getElementById('darkModeToggle').addEventListener('change', function () {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem("darkMode", document.body.classList.contains('dark-mode'));
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

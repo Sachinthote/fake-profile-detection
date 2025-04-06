@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Profile Detection</title>
+   
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .result-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2 class="text-center">Fake Profile Detection</h2>
+
+        <form method="POST" action="{% url 'profile_input' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="input_type" class="form-label">Select Input Method:</label>
+                <select id="input_type" name="input_type" class="form-select">
+                    <option value="username" {% if input_type == 'username' %}selected{% endif %}>Username</option>
+                    <option value="profile_url" {% if input_type == 'profile_url' %}selected{% endif %}>Profile URL</option>
+                    <option value="profile_image" {% if input_type == 'profile_image' %}selected{% endif %}>Upload Profile Image</option>
+                </select>
+            </div>
+
+            {% if input_type == "username" or not input_type %}
+            <div id="username_input" class="mb-3">
+                <label for="username" class="form-label">Enter Username:</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="Enter username">
+            </div>
+            {% endif %}
+
+            {% if input_type == "profile_url" %}
+            <div id="url_input" class="mb-3">
+                <label for="profile_url" class="form-label">Enter Profile URL:</label>
+                <input type="url" name="profile_url" id="profile_url" class="form-control" placeholder="Enter profile URL">
+            </div>
+            {% endif %}
+
+            {% if input_type == "profile_image" %}
+            <div id="image_input" class="mb-3">
+                <label for="profile_image" class="form-label">Upload Profile Screenshot:</label>
+                <input type="file" name="profile_image" id="profile_image" class="form-control" accept="image/*">
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">Check Profile</button>
+        </form>
+
+        {% if result %}
+            <div class="result-box {% if result.is_fake %}result-danger{% else %}result-success{% endif %}">
+                <p>{{ result.username }} is {% if result.is_fake %}FAKE{% else %}REAL{% endif %} (Confidence: {{ result.confidence }}%)</p>
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="alert alert-danger mt-3">{{ error }}</div>
+        {% endif %}
+    </div>
+
+ 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>   
+-->
+
+
+
+
+
+<div class="container mt-4" style="max-width: 600px;">
+    <div class="bg-white rounded shadow p-4">
+        <h2 class="text-center text-primary mb-4">Fake Profile Detection</h2>
+
+        <form method="POST" action="{% url 'profile_input' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Input Type Selection -->
+            <div class="mb-3">
+                <label for="input_type" class="form-label text-dark text-light-emphasis">Select Input Method:</label>
+                <select id="input_type" name="input_type" class="form-select" onchange="toggleInputFields()">
+                    <option value="username" {% if input_type == 'username' %}selected{% endif %}>Username</option>
+                    <option value="profile_url" {% if input_type == 'profile_url' %}selected{% endif %}>Profile URL</option>
+                    <option value="profile_image" {% if input_type == 'profile_image' %}selected{% endif %}>Upload Profile Image</option>
+                </select>
+            </div>
+
+            <!-- Username Input Field -->
+            <div id="username_input" class="mb-3">
+                <label for="username" class="form-label text-dark text-light-emphasis">Enter Username:</label>
+                <input type="text" name="username" id="username" class="form-control" placeholder="Enter username">
+            </div>
+
+            <!-- Profile URL Input Field -->
+            <div id="url_input" class="mb-3 hidden">
+                <label for="profile_url" class="form-label text-dark text-light-emphasis">Enter Profile URL:</label>
+                <input type="url" name="profile_url" id="profile_url" class="form-control" placeholder="Enter profile URL">
+            </div>
+
+            <!-- Image Upload Input Field -->
+            <div id="image_input" class="mb-3 hidden">
+                <label for="profile_image" class="form-label text-dark text-light-emphasis">Upload Profile Screenshot:</label>
+                <input type="file" name="profile_image" id="profile_image" class="form-control" accept="image/*" onchange="previewImage(event)">
+                <img id="image_preview" class="preview-img d-none mt-3 rounded shadow" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Check Profile</button>
+        </form>
+
+        <!-- Display Results -->
+        {% if result %}
+            <div class="result-box mt-4 {% if result.image_result == 'Real Account' %}result-success{% else %}result-danger{% endif %}">
+                <p>Profile is classified as: <strong>{{ result.image_result }}</strong></p>
+
+                {% if result.confidence_score is not None %}
+                    <p class="confidence-score">Confidence Score: <strong>{{ result.confidence_score|floatformat:2 }}%</strong></p>
+                {% endif %}
+            </div>
+
+            {% if result.image_url %}
+                <img src="{{ result.image_url }}" alt="Uploaded Image" class="preview-img mt-3 rounded shadow">
+            {% endif %}
+
+            {% if result.advice %}
+                <div class="advice-box mt-3">
+                    <strong>Advice:</strong> {{ result.advice }}
+                </div>
+            {% endif %}
+        {% endif %}
+
+        {% if advice %}
+            <div class="advice-box mt-3">
+                <strong>Advice:</strong> {{ advice }}
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="alert alert-danger mt-3">{{ error }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .result-box {
+        padding: 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .result-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .result-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .confidence-score {
+        margin-top: 10px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .advice-box {
+        padding: 12px;
+        border-radius: 5px;
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+    }
+
+    .preview-img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+
+<script>
+    function toggleInputFields() {
+        const inputType = document.getElementById("input_type").value;
+        document.getElementById("username_input").style.display = inputType === "username" ? "block" : "none";
+        document.getElementById("url_input").style.display = inputType === "profile_url" ? "block" : "none";
+        document.getElementById("image_input").style.display = inputType === "profile_image" ? "block" : "none";
+    }
+
+    function previewImage(event) {
+        const imagePreview = document.getElementById("image_preview");
+        const file = event.target.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imagePreview.src = e.target.result;
+                imagePreview.classList.remove("d-none");
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    window.onload = toggleInputFields;
+</script>
+{% endblock %}

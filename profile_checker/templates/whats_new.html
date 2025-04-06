@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center text-primary">🛡️ Latest Online Scam News</h2>
+
+    <div id="news-container" class="row"></div>
+
+    <!-- Pagination Controls -->
+    <div class="d-flex justify-content-center mt-4">
+        <nav>
+            <ul class="pagination">
+                <li class="page-item" id="prev-page"><button class="page-link">Previous</button></li>
+                <li class="page-item disabled"><span class="page-link" id="page-num">1</span></li>
+                <li class="page-item" id="next-page"><button class="page-link">Next</button></li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .news-card {
+        background-color: #ffffff;
+        border-left: 5px solid #007bff;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 8px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        transition: 0.3s ease;
+    }
+
+    .news-card:hover {
+        transform: scale(1.01);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    .news-card h5 a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .news-card h5 a:hover {
+        text-decoration: underline;
+    }
+
+    .news-card small {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+
+    .pagination .page-link {
+        color: #007bff;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        background-color: #f1f1f1;
+    }
+</style>
+
+<!-- Script with Pagination -->
+<script>
+    const PAGE_SIZE = 6;
+    let newsList = [];
+    let currentPage = 1;
+
+    async function fetchNews() {
+        try {
+            const response = await fetch('/api/newsapi-news/');
+            newsList = await response.json();
+
+            if (!newsList.length) {
+                document.getElementById('news-container').innerHTML = '<p class="text-muted">No recent news available.</p>';
+                document.querySelector('.pagination').style.display = 'none';
+                return;
+            }
+
+            renderPage(currentPage);
+        } catch (err) {
+            console.error('News fetch error:', err);
+            document.getElementById('news-container').innerHTML = '<p class="text-danger">Error loading news.</p>';
+        }
+    }
+
+    function renderPage(page) {
+        const container = document.getElementById('news-container');
+        container.innerHTML = '';
+
+        const start = (page - 1) * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        const pageNews = newsList.slice(start, end);
+
+        pageNews.forEach(item => {
+            const article = document.createElement('div');
+            article.className = 'col-md-6';
+            article.innerHTML = `
+                <div class="news-card">
+                    <h5><a href="${item.url}" target="_blank">${item.title}</a></h5>
+                    <small>🕒 ${new Date(item.publishedAt).toLocaleString()}</small>
+                </div>
+            `;
+            container.appendChild(article);
+        });
+
+        document.getElementById('page-num').textContent = page;
+        document.getElementById('prev-page').classList.toggle('disabled', page === 1);
+        document.getElementById('next-page').classList.toggle('disabled', end >= newsList.length);
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchNews();
+
+        document.getElementById('prev-page').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        });
+
+        document.getElementById('next-page').addEventListener('click', () => {
+            if ((currentPage * PAGE_SIZE) < newsList.length) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        });
+    });
+</script>
+{% endblock %}

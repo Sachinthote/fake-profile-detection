@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center text-primary">🔍 Profile Analysis Result</h1>
+    <p class="text-center text-muted">Here are the insights from the profile analysis.</p>
+
+    <div class="mt-4 p-4 border rounded shadow-sm bg-light dark-mode-aware">
+        {% if is_fake %}
+        <!-- Fake Profile Alert -->
+        <div class="alert alert-danger text-center" role="alert">
+            ❌ <strong>Warning!</strong> This profile is suspected to be **fake**.
+        </div>
+        {% else %}
+        <!-- Real Profile Alert -->
+        <div class="alert alert-success text-center" role="alert">
+            ✅ <strong>Good News!</strong> This profile appears to be **genuine**.
+        </div>
+        {% endif %}
+
+        <!-- Profile Details -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h4 class="text-secondary">📌 Profile Information:</h4>
+                <ul class="list-group">
+                    <li class="list-group-item"><strong>Username:</strong> {{ username }}</li>
+                    <li class="list-group-item"><strong>Profile ID:</strong> {{ profile_id }}</li>
+                    <li class="list-group-item"><strong>Analyzed URL:</strong> <a href="{{ profile_url }}" target="_blank">{{ profile_url }}</a></li>
+                </ul>
+            </div>
+
+            <!-- Analysis Results -->
+            <div class="col-md-6">
+                <h4 class="text-secondary">📊 Analysis Insights:</h4>
+                <ul class="list-group">
+                    <li class="list-group-item"><strong>Confidence Score:</strong> {{ confidence_score }}%</li>
+                    <li class="list-group-item"><strong>Risk Level:</strong>
+                        {% if confidence_score > 75 %}
+                        <span class="badge bg-danger">High Risk</span>
+                        {% elif confidence_score > 50 %}
+                        <span class="badge bg-warning">Moderate Risk</span>
+                        {% else %}
+                        <span class="badge bg-success">Low Risk</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item"><strong>AI Prediction:</strong> {% if is_fake %} ❌ Fake {% else %} ✅ Real {% endif %}</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Next Actions -->
+        <div class="text-center mt-5">
+            <a href="{% url 'profile_input' %}" class="btn btn-outline-primary">🔄 Analyze Another Profile</a>
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary">🏠 Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --bg-light: #f8f9fa;
+        --bg-dark: #212529;
+        --text-light: #343a40;
+        --text-dark: #f8f9fa;
+        --highlight: #0d6efd;
+        --danger: #dc3545;
+        --success: #198754;
+        --warning: #ffc107;
+    }
+
+    body[data-bs-theme="dark"] {
+        --bg-light: #1e1e1e;
+        --text-light: #dee2e6;
+        --highlight: #66b2ff;
+        --danger: #ff6b6b;
+        --success: #63e6be;
+        --warning: #ffdd57;
+    }
+
+    .section-box {
+        background-color: var(--bg-light);
+        color: var(--text-light);
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+        margin-top: 2rem;
+    }
+
+    .section-box ul li {
+        background-color: transparent !important;
+        border: none !important;
+    }
+
+    .section-title {
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .custom-link a {
+        color: var(--highlight);
+        text-decoration: none;
+    }
+
+    .custom-link a:hover {
+        text-decoration: underline;
+    }
+
+    footer {
+        background-color: var(--bg-dark);
+        color: var(--text-dark);
+    }
+
+</style>
+
+<div class="container mt-5">
+    <h1 class="text-center fw-bold text-primary">🚀 Welcome to Fake Profile Detection System</h1>
+    <p class="text-center fs-5" style="color: #e342f5;">
+        Your gateway to safer social media browsing. Instantly check if a profile is real or fake.
+    </p>
+    
+    
+
+    <div class="text-center mt-4">
+        <a href="{% url 'profile_input' %}" class="btn btn-primary btn-lg shadow px-5 py-3 fw-bold">🔍 Check Profile</a>
+    </div>
+
+    <!-- Awareness Section -->
+    <div class="section-box">
+        <h2 class="section-title text-danger">⚠ Social Media Scam Awareness</h2>
+        <p class="text-center fs-5">Stay alert and smart on social media. Know what to do and what to avoid to keep yourself secure online.</p>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h4 class="text-success fw-bold">✅ Dos</h4>
+                <ul class="list-group">
+                    <li>✔ Use strong and unique passwords.</li>
+                    <li>✔ Enable Two-Factor Authentication (2FA).</li>
+                    <li>✔ Verify accounts before trusting them.</li>
+                    <li>✔ Report suspicious profiles or activities.</li>
+                    <li>✔ Keep your app and privacy settings updated.</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h4 class="text-danger fw-bold">❌ Don'ts</h4>
+                <ul class="list-group">
+                    <li>❌ Don't share passwords or OTPs.</li>
+                    <li>❌ Don't accept random friend requests.</li>
+                    <li>❌ Don't click suspicious links.</li>
+                    <li>❌ Don’t install apps from unknown sources.</li>
+                    <li>❌ Don’t overshare your personal data online.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Types of Scams Section -->
+    <div class="section-box">
+        <h3 class="section-title text-warning">💡 Types of Online Scams & How to Stay Safe</h3>
+
+        <div class="row">
+            <div class="col-md-6 mt-3">
+                <h5 class="fw-bold text-primary">🎣 Phishing Scams</h5>
+                <p>Scammers mimic legitimate sources to steal credentials.</p>
+                <ul>
+                    <li>✅ Double-check sender email IDs.</li>
+                    <li>✅ Avoid links from unknown sources.</li>
+                    <li>✅ Use spam filters and email protection.</li>
+                </ul>
+            </div>
+            <div class="col-md-6 mt-3">
+                <h5 class="fw-bold text-primary">💸 Fake Prize Scams</h5>
+                <p>You’re told you’ve won a prize — but there’s a catch.</p>
+                <ul>
+                    <li>✅ Don’t pay to claim prizes.</li>
+                    <li>✅ Block such messages immediately.</li>
+                    <li>✅ Trust only verified giveaways.</li>
+                </ul>
+            </div>
+            <div class="col-md-6 mt-3">
+                <h5 class="fw-bold text-primary">🕵 Impersonation Scams</h5>
+                <p>Fake accounts pretending to be celebrities or officials.</p>
+                <ul>
+                    <li>✅ Look for verified badges.</li>
+                    <li>✅ Don’t transfer money to unknown profiles.</li>
+                    <li>✅ Report impersonation quickly.</li>
+                </ul>
+            </div>
+            <div class="col-md-6 mt-3">
+                <h5 class="fw-bold text-primary">💼 Job Offer Scams</h5>
+                <p>Scammers offer fake jobs to collect fees.</p>
+                <ul>
+                    <li>✅ Research companies before applying.</li>
+                    <li>✅ Never pay for job interviews.</li>
+                    <li>✅ Check company reviews.</li>
+                </ul>
+            </div>
+            <div class="col-md-6 mt-3">
+                <h5 class="fw-bold text-primary">❤️ Romance Scams</h5>
+                <p>Scammers emotionally manipulate to steal money.</p>
+                <ul>
+                    <li>✅ Be cautious of quick declarations of love.</li>
+                    <li>✅ Don’t send money to online acquaintances.</li>
+                    <li>✅ Verify identity via video calls or social media.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categorized Cyber Safety Links -->
+    <div class="section-box text-center">
+        <h3 class="text-primary fw-bold">🔐 Trusted Cyber Safety Resources</h3>
+
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <h5 class="fw-bold text-success">🚨 Reporting Platforms</h5>
+                <ul class="list-unstyled custom-link">
+                    <li><a href="https://www.cybercrime.gov.in/" target="_blank">Cyber Crime Portal (India)</a></li>
+                    <li><a href="https://reportfraud.ftc.gov/" target="_blank">FTC Report Fraud (USA)</a></li>
+                    <li><a href="https://www.actionfraud.police.uk/" target="_blank">Action Fraud (UK)</a></li>
+                </ul>
+            </div>
+
+            <div class="col-md-4">
+                <h5 class="fw-bold text-warning">📚 Awareness Resources</h5>
+                <ul class="list-unstyled custom-link">
+                    <li><a href="https://www.mygov.in/cyber-safety/" target="_blank">Cyber Safety - MyGov</a></li>
+                    <li><a href="https://staysafeonline.org/" target="_blank">Stay Safe Online</a></li>
+                    <li><a href="https://www.consumer.ftc.gov/features/scam-alerts" target="_blank">Scam Alerts - FTC</a></li>
+                </ul>
+            </div>
+
+            <div class="col-md-4">
+                <h5 class="fw-bold text-info">🏛 Government Cyber Cells</h5>
+                <ul class="list-unstyled custom-link">
+                    <li><a href="https://www.cert-in.org.in/" target="_blank">CERT-IN (India)</a></li>
+                    <li><a href="https://www.us-cert.gov/" target="_blank">US-CERT</a></li>
+                    <li><a href="https://www.ncsc.gov.uk/" target="_blank">UK NCSC</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}
