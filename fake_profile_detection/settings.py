@@ -173,7 +173,8 @@ SECRET_KEY = 'django-insecure-!$qd8uxjkse$t%wu&8u9r=dyc-#5pw_-h+5or3%y&vw@6x*3d)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = ['fake-profile-detection-h9du.onrender.com', 'localhost', '127.0.0.1']
+
 
 
 
