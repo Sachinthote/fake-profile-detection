@@ -5,7 +5,6 @@ import random
 import numpy as np
 import joblib
 import cv2
-import tensorflow as tf
 from pathlib import Path
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -15,7 +14,7 @@ from datetime import datetime, timedelta
 import requests
 from typing import Optional, Dict
 
-# Suppress TensorFlow logs
+# Suppress TensorFlow-related logs (kept just in case any dependency uses it)
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -76,6 +75,7 @@ ADVICE_MESSAGES = {
     ]
 }
 
+# ---------------------------- MODEL LOADING ----------------------------
 def load_model(model_key: str, path_key: str) -> bool:
     if MODEL_CACHE[model_key] is None:
         try:
@@ -103,6 +103,42 @@ def load_image_model() -> bool:
             return False
     return True
 
+# ---------------------------- IMAGE PROCESSING ----------------------------
+def preprocess_image_for_vgg(img: np.ndarray) -> np.ndarray:
+    """Manual equivalent of VGG16 preprocess_input without TF."""
+    img = img.astype(np.float32)
+    # Convert RGB to BGR
+    img = img[..., ::-1]
+    # Subtract mean values (based on ImageNet)
+    mean = [103.939, 116.779, 123.68]
+    img[..., 0] -= mean[0]
+    img[..., 1] -= mean[1]
+    img[..., 2] -= mean[2]
+    return img
+
+def extract_features(image_path: str) -> np.ndarray:
+    try:
+        if not load_image_model():
+            raise ValueError("Failed to load image model or feature extractor.")
+
+        image_path = Path(image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Uploaded image not found: {image_path}")
+
+        img = cv2.imread(str(image_path))
+        img = cv2.resize(img, (224, 224))
+        img = np.expand_dims(preprocess_image_for_vgg(img), axis=0)
+
+        features = MODEL_CACHE["feature_extractor"].predict(img)
+        return features.flatten().reshape(1, -1)
+    except Exception as e:
+        logger.error(f"❌ Error extracting image features: {e}", exc_info=True)
+        raise ValueError(f"Feature extraction failed: {str(e)}")
+
+# ---------------------------- CORE FUNCTIONALITY ----------------------------
+def get_random_advice(result_type: str) -> str:
+    return random.choice(ADVICE_MESSAGES.get(result_type, ADVICE_MESSAGES["default"]))
+
 def extract_username(profile_url: str) -> Optional[str]:
     try:
         if not profile_url:
@@ -114,37 +150,11 @@ def extract_username(profile_url: str) -> Optional[str]:
             match = re.search(pattern, profile_url)
             if match:
                 return match.group(1)
-        simple_username = re.search(r"//[^/]+/([^/?#]+)", profile_url)
-        return simple_username.group(1) if simple_username else None
+        fallback = re.search(r"//[^/]+/([^/?#]+)", profile_url)
+        return fallback.group(1) if fallback else None
     except Exception as e:
         logger.error(f"❌ Error extracting username: {e}", exc_info=True)
         return None
-
-def extract_features(image_path: str) -> np.ndarray:
-    try:
-        if not load_image_model():
-            raise ValueError("Failed to load image model or feature extractor.")
-
-        image_path = Path(image_path)
-        if not image_path.exists():
-            raise FileNotFoundError(f"Uploaded image not found: {image_path}")
-
-        # Preprocess manually
-        img = cv2.imread(str(image_path))
-        img = cv2.resize(img, (224, 224))
-        img = img.astype(np.float32)
-        img = np.expand_dims(img, axis=0)
-        img = tf.keras.applications.vgg16.preprocess_input(img)
-
-        features = MODEL_CACHE["feature_extractor"].predict(img)
-        return features.flatten().reshape(1, -1)
-    except Exception as e:
-        logger.error(f"❌ Error extracting image features: {e}", exc_info=True)
-        raise ValueError(f"Feature extraction failed: {str(e)}")
-
-def get_random_advice(result_type: str) -> str:
-    advice_list = ADVICE_MESSAGES.get(result_type, ADVICE_MESSAGES["default"])
-    return random.choice(advice_list)
 
 def predict_username(username: str) -> Dict[str, str]:
     if not username or not load_username_model():
@@ -170,6 +180,7 @@ def predict_image(image_path: str) -> Dict[str, str]:
         logger.error(f"❌ Error during image prediction: {e}", exc_info=True)
         return None
 
+# ---------------------------- VIEWS ----------------------------
 def home(request: HttpRequest) -> HttpResponse:
     return render(request, 'home.html')
 
@@ -231,6 +242,7 @@ def profile_input(request: HttpRequest) -> HttpResponse:
 
     return render(request, "profile_input.html", {"error": error, "result": result})
 
+# ---------------------------- NEWS FEATURE ----------------------------
 def whats_new(request):
     return render(request, 'whats_new.html')
 
@@ -246,16 +258,14 @@ def get_newsapi_news(request):
         'apiKey': api_key,
     }
 
-    url = 'https://newsapi.org/v2/everything'
     try:
-        response = requests.get(url, params=params)
+        response = requests.get('https://newsapi.org/v2/everything', params=params)
         response.raise_for_status()
-        data = response.json()
-        news_list = [{
+        articles = response.json().get('articles', [])
+        return JsonResponse([{
             'title': a.get('title'),
             'url': a.get('url'),
             'publishedAt': a.get('publishedAt')
-        } for a in data.get('articles', [])]
-        return JsonResponse(news_list, safe=False)
+        } for a in articles], safe=False)
     except requests.RequestException as e:
         return JsonResponse({'error': str(e)}, status=500)
