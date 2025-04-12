@@ -14,11 +14,11 @@ from datetime import datetime, timedelta
 import requests
 from typing import Optional, Dict
 
-# Suppress TensorFlow-related logs (kept just in case any dependency uses it)
+# Suppress TensorFlow logs
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Logger setup
+# Setup logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATHS = {
     "username_model": BASE_DIR / "profile_checker" / "svm_model.pkl",
     "vectorizer": BASE_DIR / "profile_checker" / "vectorizer.pkl",
-    "image_model": BASE_DIR / "profile_checker" / "svm_image_model.pkl",
+    "image_model": BASE_DIR / "profile_checker" / "xgb_image_model.pkl",  # ✅ Correct XGBoost model path
     "feature_extractor": BASE_DIR / "profile_checker" / "feature_extractor.pkl",
 }
 
@@ -40,7 +40,7 @@ MODEL_CACHE = {
     "feature_extractor": None,
 }
 
-# URL patterns
+# URL extraction patterns
 URL_PATTERNS = {
     "twitter": r"(?:twitter|x)\.com/([^/?#]+)",
     "instagram": r"instagram\.com/([^/?#]+)",
@@ -49,7 +49,6 @@ URL_PATTERNS = {
     "linkedin": r"linkedin\.com/in/([^/?#]+)",
 }
 
-# Advice messages
 ADVICE_MESSAGES = {
     "Real Account": [
         "This profile appears to be genuine based on our analysis.",
@@ -75,21 +74,20 @@ ADVICE_MESSAGES = {
     ]
 }
 
-# ---------------------------- MODEL LOADING ----------------------------
+# ---------------------------- Model Loaders ----------------------------
 def load_model(model_key: str, path_key: str) -> bool:
     if MODEL_CACHE[model_key] is None:
         try:
             MODEL_CACHE[model_key] = joblib.load(MODEL_PATHS[path_key])
-            logger.info(f"✅ Successfully loaded {model_key}")
+            logger.info(f"✅ Loaded model: {model_key}")
             return True
         except Exception as e:
-            logger.error(f"❌ Error loading {model_key}: {e}", exc_info=True)
+            logger.error(f"❌ Failed to load {model_key}: {e}", exc_info=True)
             return False
     return True
 
 def load_username_model() -> bool:
-    return (load_model("svm_model", "username_model") and
-            load_model("vectorizer", "vectorizer"))
+    return load_model("svm_model", "username_model") and load_model("vectorizer", "vectorizer")
 
 def load_image_model() -> bool:
     if not load_model("image_svm_model", "image_model"):
@@ -97,55 +95,37 @@ def load_image_model() -> bool:
     if MODEL_CACHE["feature_extractor"] is None:
         try:
             MODEL_CACHE["feature_extractor"] = joblib.load(MODEL_PATHS["feature_extractor"])
-            logger.info("✅ Successfully loaded feature extractor model")
+            logger.info("✅ Loaded MobileNetV2 feature extractor")
         except Exception as e:
-            logger.error(f"❌ Error loading feature extractor: {e}", exc_info=True)
+            logger.error(f"❌ Failed to load feature extractor: {e}", exc_info=True)
             return False
     return True
 
-# ---------------------------- IMAGE PROCESSING ----------------------------
-def preprocess_image_for_vgg(img: np.ndarray) -> np.ndarray:
-    """Manual equivalent of VGG16 preprocess_input without TF."""
-    img = img.astype(np.float32)
-    # Convert RGB to BGR
-    img = img[..., ::-1]
-    # Subtract mean values (based on ImageNet)
-    mean = [103.939, 116.779, 123.68]
-    img[..., 0] -= mean[0]
-    img[..., 1] -= mean[1]
-    img[..., 2] -= mean[2]
+# ---------------------------- Image Processing ----------------------------
+def preprocess_image_for_mobilenet(img: np.ndarray) -> np.ndarray:
+    img = img.astype(np.float32) / 127.5 - 1.0
     return img
 
 def extract_features(image_path: str) -> np.ndarray:
     try:
         if not load_image_model():
-            raise ValueError("Failed to load image model or feature extractor.")
-
-        image_path = Path(image_path)
-        if not image_path.exists():
-            raise FileNotFoundError(f"Uploaded image not found: {image_path}")
-
+            raise ValueError("Model loading failed.")
         img = cv2.imread(str(image_path))
         img = cv2.resize(img, (224, 224))
-        img = np.expand_dims(preprocess_image_for_vgg(img), axis=0)
-
+        img = np.expand_dims(preprocess_image_for_mobilenet(img), axis=0)
         features = MODEL_CACHE["feature_extractor"].predict(img)
-        return features.flatten().reshape(1, -1)
+        return features.reshape(1, -1)
     except Exception as e:
-        logger.error(f"❌ Error extracting image features: {e}", exc_info=True)
-        raise ValueError(f"Feature extraction failed: {str(e)}")
+        logger.error(f"❌ Image feature extraction error: {e}", exc_info=True)
+        raise ValueError("Image processing failed.")
 
-# ---------------------------- CORE FUNCTIONALITY ----------------------------
-def get_random_advice(result_type: str) -> str:
-    return random.choice(ADVICE_MESSAGES.get(result_type, ADVICE_MESSAGES["default"]))
-
+# ---------------------------- Prediction Logic ----------------------------
 def extract_username(profile_url: str) -> Optional[str]:
     try:
         if not profile_url:
             return None
         if not profile_url.startswith(('http://', 'https://')):
             profile_url = 'https://' + profile_url
-        profile_url = profile_url.lower()
         for platform, pattern in URL_PATTERNS.items():
             match = re.search(pattern, profile_url)
             if match:
@@ -153,34 +133,31 @@ def extract_username(profile_url: str) -> Optional[str]:
         fallback = re.search(r"//[^/]+/([^/?#]+)", profile_url)
         return fallback.group(1) if fallback else None
     except Exception as e:
-        logger.error(f"❌ Error extracting username: {e}", exc_info=True)
+        logger.error(f"❌ URL extraction error: {e}", exc_info=True)
         return None
+
+def get_random_advice(result_type: str) -> str:
+    return random.choice(ADVICE_MESSAGES.get(result_type, ADVICE_MESSAGES["default"]))
 
 def predict_username(username: str) -> Dict[str, str]:
     if not username or not load_username_model():
         return None
-    vectorized = MODEL_CACHE["vectorizer"].transform([username])
-    prediction = MODEL_CACHE["svm_model"].predict(vectorized)[0]
+    vector = MODEL_CACHE["vectorizer"].transform([username])
+    prediction = MODEL_CACHE["svm_model"].predict(vector)[0]
     result = "Real Account" if prediction == 0 else "Fake Account"
-    return {
-        "image_result": result,
-        "advice": get_random_advice(result)
-    }
+    return {"image_result": result, "advice": get_random_advice(result)}
 
 def predict_image(image_path: str) -> Dict[str, str]:
     try:
         features = extract_features(image_path)
         prediction = MODEL_CACHE["image_svm_model"].predict(features)[0]
         result = "Real Account" if prediction == 0 else "Fake Account"
-        return {
-            "image_result": result,
-            "advice": get_random_advice(result)
-        }
+        return {"image_result": result, "advice": get_random_advice(result)}
     except Exception as e:
-        logger.error(f"❌ Error during image prediction: {e}", exc_info=True)
+        logger.error(f"❌ Prediction error: {e}", exc_info=True)
         return None
 
-# ---------------------------- VIEWS ----------------------------
+# ---------------------------- Django Views ----------------------------
 def home(request: HttpRequest) -> HttpResponse:
     return render(request, 'home.html')
 
@@ -198,51 +175,43 @@ def profile_input(request: HttpRequest) -> HttpResponse:
     upload_dir.mkdir(exist_ok=True)
 
     input_type = request.POST.get("input_type", "username")
-    logger.info(f"Processing input type: {input_type}")
+    logger.info(f"📥 Input type: {input_type}")
 
     try:
         if input_type == "username":
             username = request.POST.get("username", "").strip()
-            if username:
-                result = predict_username(username)
-                if not result:
-                    error = "Failed to process username."
-            else:
-                error = "Please enter a valid username."
+            result = predict_username(username) if username else None
+            if not result:
+                error = "Invalid or missing username."
 
         elif input_type == "profile_url":
             profile_url = request.POST.get("profile_url", "").strip()
             username = extract_username(profile_url)
-            if username:
-                result = predict_username(username)
-                if not result:
-                    error = "Failed to process profile URL."
-            else:
-                error = "Invalid profile URL or could not extract username."
+            result = predict_username(username) if username else None
+            if not result:
+                error = "Could not process profile URL."
 
         elif input_type == "profile_image":
             uploaded_image = request.FILES.get("profile_image")
             if uploaded_image:
-                filename = default_storage.save(
-                    f"uploaded_images/{uploaded_image.name}", uploaded_image
-                )
+                filename = default_storage.save(f"uploaded_images/{uploaded_image.name}", uploaded_image)
                 image_path = Path(settings.MEDIA_ROOT) / filename
                 result = predict_image(image_path)
                 if not result:
-                    error = "Failed to analyze the image."
+                    error = "Failed to analyze image."
             else:
-                error = "Please upload a valid image."
+                error = "No image uploaded."
 
         else:
-            error = "Invalid input type."
+            error = "Invalid input type selected."
 
     except Exception as e:
-        logger.error(f"❌ Unexpected error in profile_input: {e}", exc_info=True)
-        error = f"An unexpected error occurred: {str(e)}"
+        logger.error(f"❌ Exception during form processing: {e}", exc_info=True)
+        error = f"An error occurred: {str(e)}"
 
     return render(request, "profile_input.html", {"error": error, "result": result})
 
-# ---------------------------- NEWS FEATURE ----------------------------
+# ---------------------------- News Feature ----------------------------
 def whats_new(request):
     return render(request, 'whats_new.html')
 
