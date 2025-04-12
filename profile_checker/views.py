@@ -5,6 +5,7 @@ import random
 import numpy as np
 import joblib
 import cv2
+import tensorflow as tf
 from pathlib import Path
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -16,23 +17,24 @@ from typing import Optional, Dict
 
 # Suppress TensorFlow logs
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-# Setup logging
+# Logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Model paths
+# ✅ Model paths
 MODEL_PATHS = {
     "username_model": BASE_DIR / "profile_checker" / "svm_model.pkl",
     "vectorizer": BASE_DIR / "profile_checker" / "vectorizer.pkl",
-    "image_model": BASE_DIR / "profile_checker" / "xgb_image_model.pkl",  # ✅ Correct XGBoost model path
-    "feature_extractor": BASE_DIR / "profile_checker" / "feature_extractor.pkl",
+    "image_model": BASE_DIR / "profile_checker" / "xgb_image_model.pkl",
+    "feature_extractor": BASE_DIR / "profile_checker" / "feature_extractor.h5",
+
 }
 
-# Model cache
+# ✅ Model cache
 MODEL_CACHE = {
     "svm_model": None,
     "vectorizer": None,
@@ -40,7 +42,7 @@ MODEL_CACHE = {
     "feature_extractor": None,
 }
 
-# URL extraction patterns
+# ---------------------------- Patterns & Advice ----------------------------
 URL_PATTERNS = {
     "twitter": r"(?:twitter|x)\.com/([^/?#]+)",
     "instagram": r"instagram\.com/([^/?#]+)",
@@ -74,7 +76,7 @@ ADVICE_MESSAGES = {
     ]
 }
 
-# ---------------------------- Model Loaders ----------------------------
+# ---------------------------- Model Loading ----------------------------
 def load_model(model_key: str, path_key: str) -> bool:
     if MODEL_CACHE[model_key] is None:
         try:
@@ -90,21 +92,28 @@ def load_username_model() -> bool:
     return load_model("svm_model", "username_model") and load_model("vectorizer", "vectorizer")
 
 def load_image_model() -> bool:
-    if not load_model("image_svm_model", "image_model"):
-        return False
+    if MODEL_CACHE["image_svm_model"] is None:
+        if not load_model("image_svm_model", "image_model"):
+            return False
     if MODEL_CACHE["feature_extractor"] is None:
         try:
-            MODEL_CACHE["feature_extractor"] = joblib.load(MODEL_PATHS["feature_extractor"])
+            path = MODEL_PATHS["feature_extractor"]
+            if not path.exists():
+                raise FileNotFoundError(f"Feature extractor not found at {path}")
+            
+            # Load the feature extractor (adjust based on format)
+            MODEL_CACHE["feature_extractor"] = tf.keras.models.load_model(path)  # For SavedModel format
+            # MODEL_CACHE["feature_extractor"] = tf.keras.models.load_model(path, compile=False)  # For HDF5 format
+            
             logger.info("✅ Loaded MobileNetV2 feature extractor")
         except Exception as e:
-            logger.error(f"❌ Failed to load feature extractor: {e}", exc_info=True)
+            logger.error(f"❌ Failed to load TF feature extractor: {e}", exc_info=True)
             return False
     return True
 
 # ---------------------------- Image Processing ----------------------------
 def preprocess_image_for_mobilenet(img: np.ndarray) -> np.ndarray:
-    img = img.astype(np.float32) / 127.5 - 1.0
-    return img
+    return img.astype(np.float32) / 127.5 - 1.0
 
 def extract_features(image_path: str) -> np.ndarray:
     try:
@@ -113,7 +122,7 @@ def extract_features(image_path: str) -> np.ndarray:
         img = cv2.imread(str(image_path))
         img = cv2.resize(img, (224, 224))
         img = np.expand_dims(preprocess_image_for_mobilenet(img), axis=0)
-        features = MODEL_CACHE["feature_extractor"].predict(img)
+        features = MODEL_CACHE["feature_extractor"].predict(img, verbose=0)
         return features.reshape(1, -1)
     except Exception as e:
         logger.error(f"❌ Image feature extraction error: {e}", exc_info=True)
@@ -126,7 +135,7 @@ def extract_username(profile_url: str) -> Optional[str]:
             return None
         if not profile_url.startswith(('http://', 'https://')):
             profile_url = 'https://' + profile_url
-        for platform, pattern in URL_PATTERNS.items():
+        for pattern in URL_PATTERNS.values():
             match = re.search(pattern, profile_url)
             if match:
                 return match.group(1)

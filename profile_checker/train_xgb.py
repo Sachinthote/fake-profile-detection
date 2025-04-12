@@ -6,7 +6,7 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input as mobilenet_preprocess
 from sklearn.model_selection import train_test_split
-import xgboost as xgb  # ✅ XGBoost classifier
+import xgboost as xgb
 
 # ✅ Disable unnecessary logs and GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -17,7 +17,7 @@ DATASET_PATH = r"D:\Profile Checking\fake_profile_detection\fake_profile_detecti
 CATEGORIES = ["real", "fake"]
 IMG_SIZE = (224, 224)
 
-# ✅ Load MobileNetV2 (as feature extractor)
+# ✅ Load MobileNetV2 (feature extractor)
 feature_extractor = MobileNetV2(weights="imagenet", include_top=False, input_shape=(224, 224, 3), pooling='avg')
 
 def extract_features(image_path):
@@ -28,7 +28,7 @@ def extract_features(image_path):
     features = feature_extractor.predict(img_array)
     return features.flatten()
 
-# ✅ Extract features from dataset
+# ✅ Extract dataset features
 X, y = [], []
 for label, category in enumerate(CATEGORIES):
     folder_path = os.path.join(DATASET_PATH, category)
@@ -46,15 +46,19 @@ for label, category in enumerate(CATEGORIES):
 X = np.array(X)
 y = np.array(y)
 
-# ✅ Train XGBoost
+# ✅ Train XGBoost model
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
 xgb_model.fit(X_train, y_train)
 
-# ✅ Save model
+# ✅ Save models
 MODEL_PATH = r"D:/Profile Checking/fake_profile_detection/profile_checker/"
 os.makedirs(MODEL_PATH, exist_ok=True)
+
+# Save XGBoost
 joblib.dump(xgb_model, os.path.join(MODEL_PATH, "xgb_image_model.pkl"))
-joblib.dump(feature_extractor, os.path.join(MODEL_PATH, "feature_extractor.pkl"))
+
+# Save MobileNetV2 as .h5 for loading in views.py
+feature_extractor.save(os.path.join(MODEL_PATH, "feature_extractor.h5"), save_format="h5")
 
 print("✅ XGBoost model with MobileNetV2 features trained and saved successfully!")
