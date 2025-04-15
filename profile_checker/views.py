@@ -3,7 +3,6 @@ import re
 import logging
 import random
 import numpy as np
-import joblib
 import cv2
 import tensorflow as tf
 from pathlib import Path
@@ -14,6 +13,7 @@ from django.conf import settings
 from datetime import datetime, timedelta
 import requests
 from typing import Optional, Dict
+import joblib
 
 # Suppress TensorFlow logs
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
@@ -25,24 +25,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ Model paths
+# Model paths
 MODEL_PATHS = {
     "username_model": BASE_DIR / "profile_checker" / "svm_model.pkl",
     "vectorizer": BASE_DIR / "profile_checker" / "vectorizer.pkl",
-    "image_model": BASE_DIR / "profile_checker" / "xgb_image_model.pkl",
-    "feature_extractor": BASE_DIR / "profile_checker" / "feature_extractor.h5",
-
+    "image_model": BASE_DIR / "profile_checker" / "profile_detector_model.tflite",  # No change if path is same
 }
 
-# ✅ Model cache
+
 MODEL_CACHE = {
     "svm_model": None,
     "vectorizer": None,
-    "image_svm_model": None,
-    "feature_extractor": None,
+    "image_model": None,
 }
 
-# ---------------------------- Patterns & Advice ----------------------------
+
+# URL Patterns
 URL_PATTERNS = {
     "twitter": r"(?:twitter|x)\.com/([^/?#]+)",
     "instagram": r"instagram\.com/([^/?#]+)",
@@ -76,7 +74,7 @@ ADVICE_MESSAGES = {
     ]
 }
 
-# ---------------------------- Model Loading ----------------------------
+# ------------------------- Model Loaders -------------------------
 def load_model(model_key: str, path_key: str) -> bool:
     if MODEL_CACHE[model_key] is None:
         try:
@@ -92,43 +90,51 @@ def load_username_model() -> bool:
     return load_model("svm_model", "username_model") and load_model("vectorizer", "vectorizer")
 
 def load_image_model() -> bool:
-    if MODEL_CACHE["image_svm_model"] is None:
-        if not load_model("image_svm_model", "image_model"):
-            return False
-    if MODEL_CACHE["feature_extractor"] is None:
+    if MODEL_CACHE["image_model"] is None:
         try:
-            path = MODEL_PATHS["feature_extractor"]
-            if not path.exists():
-                raise FileNotFoundError(f"Feature extractor not found at {path}")
-            
-            # Load the feature extractor (adjust based on format)
-            MODEL_CACHE["feature_extractor"] = tf.keras.models.load_model(path)  # For SavedModel format
-            # MODEL_CACHE["feature_extractor"] = tf.keras.models.load_model(path, compile=False)  # For HDF5 format
-            
-            logger.info("✅ Loaded MobileNetV2 feature extractor")
+            if not MODEL_PATHS["image_model"].exists():
+                logger.error(f"❌ TFLite model file not found at {MODEL_PATHS['image_model']}")
+                return False
+            interpreter = tf.lite.Interpreter(model_path=str(MODEL_PATHS["image_model"]))
+            interpreter.allocate_tensors()
+            MODEL_CACHE["image_model"] = interpreter
+            logger.info("✅ Loaded TFLite image model")
+            return True
         except Exception as e:
-            logger.error(f"❌ Failed to load TF feature extractor: {e}", exc_info=True)
+            logger.error(f"❌ Failed to load TFLite model: {e}", exc_info=True)
             return False
     return True
 
-# ---------------------------- Image Processing ----------------------------
-def preprocess_image_for_mobilenet(img: np.ndarray) -> np.ndarray:
-    return img.astype(np.float32) / 127.5 - 1.0
+# ------------------------- Prediction Logic -------------------------
+def preprocess_image_for_tflite(img: np.ndarray) -> np.ndarray:
+    img = cv2.resize(img, (224, 224))
+    img = img.astype(np.float32) / 255.0
+    return np.expand_dims(img, axis=0)
 
-def extract_features(image_path: str) -> np.ndarray:
+def predict_image(image_path: str) -> Dict[str, str]:
     try:
         if not load_image_model():
             raise ValueError("Model loading failed.")
-        img = cv2.imread(str(image_path))
-        img = cv2.resize(img, (224, 224))
-        img = np.expand_dims(preprocess_image_for_mobilenet(img), axis=0)
-        features = MODEL_CACHE["feature_extractor"].predict(img, verbose=0)
-        return features.reshape(1, -1)
-    except Exception as e:
-        logger.error(f"❌ Image feature extraction error: {e}", exc_info=True)
-        raise ValueError("Image processing failed.")
+        interpreter = MODEL_CACHE["image_model"]
 
-# ---------------------------- Prediction Logic ----------------------------
+        img = cv2.imread(str(image_path))
+        if img is None:
+            raise ValueError("Image could not be read by OpenCV.")
+        img = preprocess_image_for_tflite(img)
+
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        interpreter.set_tensor(input_details[0]['index'], img)
+        interpreter.invoke()
+
+        output = interpreter.get_tensor(output_details[0]['index'])[0][0]
+        result = "Real Account" if output < 0.5 else "Fake Account"
+        return {"image_result": result, "advice": random.choice(ADVICE_MESSAGES[result])}
+    except Exception as e:
+        logger.error(f"❌ Prediction error: {e}", exc_info=True)
+        return None
+
 def extract_username(profile_url: str) -> Optional[str]:
     try:
         if not profile_url:
@@ -145,28 +151,15 @@ def extract_username(profile_url: str) -> Optional[str]:
         logger.error(f"❌ URL extraction error: {e}", exc_info=True)
         return None
 
-def get_random_advice(result_type: str) -> str:
-    return random.choice(ADVICE_MESSAGES.get(result_type, ADVICE_MESSAGES["default"]))
-
 def predict_username(username: str) -> Dict[str, str]:
     if not username or not load_username_model():
         return None
     vector = MODEL_CACHE["vectorizer"].transform([username])
     prediction = MODEL_CACHE["svm_model"].predict(vector)[0]
     result = "Real Account" if prediction == 0 else "Fake Account"
-    return {"image_result": result, "advice": get_random_advice(result)}
+    return {"image_result": result, "advice": random.choice(ADVICE_MESSAGES[result])}
 
-def predict_image(image_path: str) -> Dict[str, str]:
-    try:
-        features = extract_features(image_path)
-        prediction = MODEL_CACHE["image_svm_model"].predict(features)[0]
-        result = "Real Account" if prediction == 0 else "Fake Account"
-        return {"image_result": result, "advice": get_random_advice(result)}
-    except Exception as e:
-        logger.error(f"❌ Prediction error: {e}", exc_info=True)
-        return None
-
-# ---------------------------- Django Views ----------------------------
+# ------------------------- Django Views -------------------------
 def home(request: HttpRequest) -> HttpResponse:
     return render(request, 'home.html')
 
@@ -203,11 +196,15 @@ def profile_input(request: HttpRequest) -> HttpResponse:
         elif input_type == "profile_image":
             uploaded_image = request.FILES.get("profile_image")
             if uploaded_image:
-                filename = default_storage.save(f"uploaded_images/{uploaded_image.name}", uploaded_image)
-                image_path = Path(settings.MEDIA_ROOT) / filename
-                result = predict_image(image_path)
-                if not result:
-                    error = "Failed to analyze image."
+                try:
+                    filename = default_storage.save(f"uploaded_images/{uploaded_image.name}", uploaded_image)
+                    image_path = Path(settings.MEDIA_ROOT) / filename
+                    result = predict_image(image_path)
+                    if not result:
+                        error = "Failed to analyze image."
+                except Exception as e:
+                    logger.error(f"❌ Error processing uploaded image: {e}", exc_info=True)
+                    error = "An error occurred while processing the image."
             else:
                 error = "No image uploaded."
 
@@ -220,7 +217,6 @@ def profile_input(request: HttpRequest) -> HttpResponse:
 
     return render(request, "profile_input.html", {"error": error, "result": result})
 
-# ---------------------------- News Feature ----------------------------
 def whats_new(request):
     return render(request, 'whats_new.html')
 
