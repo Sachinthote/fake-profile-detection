@@ -4,7 +4,6 @@ import logging
 import random
 import numpy as np
 import cv2
-import tensorflow as tf
 from pathlib import Path
 from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -12,8 +11,11 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from datetime import datetime, timedelta
 import requests
-from typing import Optional, Dict
 import joblib
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+from tensorflow.keras.preprocessing.image import img_to_array
+
 
 # Suppress TensorFlow logs
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
@@ -29,15 +31,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATHS = {
     "username_model": BASE_DIR / "profile_checker" / "svm_model.pkl",
     "vectorizer": BASE_DIR / "profile_checker" / "vectorizer.pkl",
-    "image_model": BASE_DIR / "profile_checker" / "profile_detector_model.tflite",  # No change if path is same
+    "image_model": BASE_DIR / "profile_checker" / "xgb_image_model.pkl",
 }
-
 
 MODEL_CACHE = {
     "svm_model": None,
     "vectorizer": None,
     "image_model": None,
 }
+
+FEATURE_EXTRACTOR = MobileNetV2(weights="imagenet", include_top=False, pooling="avg", input_shape=(224, 224, 3))
+FEATURE_EXTRACTOR.trainable = False
 
 
 # URL Patterns
@@ -90,52 +94,40 @@ def load_username_model() -> bool:
     return load_model("svm_model", "username_model") and load_model("vectorizer", "vectorizer")
 
 def load_image_model() -> bool:
-    if MODEL_CACHE["image_model"] is None:
-        try:
-            if not MODEL_PATHS["image_model"].exists():
-                logger.error(f"❌ TFLite model file not found at {MODEL_PATHS['image_model']}")
-                return False
-            interpreter = tf.lite.Interpreter(model_path=str(MODEL_PATHS["image_model"]))
-            interpreter.allocate_tensors()
-            MODEL_CACHE["image_model"] = interpreter
-            logger.info("✅ Loaded TFLite image model")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Failed to load TFLite model: {e}", exc_info=True)
-            return False
-    return True
+    return load_model("image_model", "image_model")
 
 # ------------------------- Prediction Logic -------------------------
-def preprocess_image_for_tflite(img: np.ndarray) -> np.ndarray:
+def preprocess_image_for_model(img: np.ndarray) -> np.ndarray:
     img = cv2.resize(img, (224, 224))
-    img = img.astype(np.float32) / 255.0
-    return np.expand_dims(img, axis=0)
+    img = img_to_array(img)  # Convert to array
+    img = np.expand_dims(img, axis=0)  # Shape (1, 224, 224, 3)
+    img = preprocess_input(img)        # Preprocess for MobileNetV2
+    features = FEATURE_EXTRACTOR.predict(img, verbose=0)  # Shape (1, 1280)
+    return features
 
-def predict_image(image_path: str) -> Dict[str, str]:
+
+def predict_image(image_path: str) -> dict:
     try:
         if not load_image_model():
             raise ValueError("Model loading failed.")
-        interpreter = MODEL_CACHE["image_model"]
 
         img = cv2.imread(str(image_path))
         if img is None:
             raise ValueError("Image could not be read by OpenCV.")
-        img = preprocess_image_for_tflite(img)
+        processed = preprocess_image_for_model(img)
 
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
+        model = MODEL_CACHE["image_model"]
+        prediction = model.predict(processed)[0]
 
-        interpreter.set_tensor(input_details[0]['index'], img)
-        interpreter.invoke()
-
-        output = interpreter.get_tensor(output_details[0]['index'])[0][0]
-        result = "Real Account" if output < 0.5 else "Fake Account"
+        # FIXED: Reversed the condition - 1 is now "Real Account", 0 is "Fake Account"
+        result = "Real Account" if prediction == 1 else "Fake Account"
         return {"image_result": result, "advice": random.choice(ADVICE_MESSAGES[result])}
+
     except Exception as e:
         logger.error(f"❌ Prediction error: {e}", exc_info=True)
         return None
 
-def extract_username(profile_url: str) -> Optional[str]:
+def extract_username(profile_url: str):
     try:
         if not profile_url:
             return None
@@ -151,11 +143,13 @@ def extract_username(profile_url: str) -> Optional[str]:
         logger.error(f"❌ URL extraction error: {e}", exc_info=True)
         return None
 
-def predict_username(username: str) -> Dict[str, str]:
+def predict_username(username: str) -> dict:
     if not username or not load_username_model():
         return None
     vector = MODEL_CACHE["vectorizer"].transform([username])
     prediction = MODEL_CACHE["svm_model"].predict(vector)[0]
+    # FIXED: Reversed the condition - 1 is now "Real Account", 0 is "Fake Account"
+    
     result = "Real Account" if prediction == 0 else "Fake Account"
     return {"image_result": result, "advice": random.choice(ADVICE_MESSAGES[result])}
 
@@ -217,10 +211,10 @@ def profile_input(request: HttpRequest) -> HttpResponse:
 
     return render(request, "profile_input.html", {"error": error, "result": result})
 
-def whats_new(request):
+def whats_new(request: HttpRequest) -> HttpResponse:
     return render(request, 'whats_new.html')
 
-def get_newsapi_news(request):
+def get_newsapi_news(request: HttpRequest) -> JsonResponse:
     api_key = 'a656d2ee524d4346862414c6e533a45d'
     query = '"online scam" OR "cyber fraud" OR "cybersecurity"'
     from_date = (datetime.today() - timedelta(days=15)).strftime('%Y-%m-%d')
